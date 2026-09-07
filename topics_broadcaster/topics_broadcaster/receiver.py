@@ -12,6 +12,7 @@ def send_TCP(message:bytes,                 #
              address:str,                   #
              logger:Logger|None=None,       #
              name:str="",                   #
+             buffer_size:int=1024,          #
              ) -> bytes:
     
     prefix = f"\033[0;0m[SEND TCP {blue_fore(name)}]"
@@ -23,21 +24,21 @@ def send_TCP(message:bytes,                 #
         request_size = client.send(message)
 
         if logger is not None:
-            logger.info(f"{prefix} Request: {request_size}B @ {address}:{port}")
+            logger.info(f"{prefix} Request: {request_size}B @ {blue_fore(address)}:{blue_fore(port)}")
 
-        response = client.recv(1024)
+        response = client.recv(buffer_size)
         if logger is not None:
-            logger.info(f"{prefix} Reponse: {response}")
+            logger.info(f"{prefix} Server response: {response}")
 
     except ConnectionRefusedError:
         if logger is not None:
             logger.warn(f"{prefix} {red_fore('Connection refused')}")
 
 
-class Reciever(Node, Logger):
+class Receiver(Node, Logger):
 
     def __init__(self, config:dict):
-        super().__init__("reciever_client")
+        super().__init__("receiver_client")
         self.__config = config
 
         self.__heading_subscriber = self.create_subscription(
@@ -47,7 +48,7 @@ class Reciever(Node, Logger):
             qos_profile=10
         )
 
-        self.info(blue_back("RUNNING RECIEVER (CLIENT) ON JETSON"))
+        self.info(blue_back("RUNNING RECEIVER (CLIENT) ON JETSON"))
 
         # TODO: FPS control
 
@@ -63,10 +64,11 @@ class Reciever(Node, Logger):
     def __heading_callback(self, msg:Float32):
         msg_bytes = json.dumps({self.__config["heading_key"]: float(msg.data)}).encode()
         send_TCP(message=msg_bytes,
-                 port=self.__config["heading_port"],
-                 address=self.__config["heading_IP"],
+                 port=self.__config["heading_server_port"],
+                 address=self.__config["heading_server_IP"],
                  logger=self,
-                 name=self.__config["heading_name"]
+                 name=self.__config["heading_name"],
+                 buffer_size=self.__config["heading_server_buffer_size"]
                  )
 
   
@@ -74,7 +76,7 @@ class Reciever(Node, Logger):
 def main():
     try:
         rclpy.init()
-        rclpy.spin(node=Reciever(config=CONFIGURATION))
+        rclpy.spin(node=Receiver(config=CONFIGURATION))
     except (ExternalShutdownException, KeyboardInterrupt) as e:
         print(e)
 

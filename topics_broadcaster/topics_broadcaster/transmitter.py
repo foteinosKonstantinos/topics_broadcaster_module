@@ -73,12 +73,12 @@ class Transmitter(Node, Logger):
 
         self.info(blue_back("RUNNING TRANSMITTER (SERVER) ON GROUND STATION"))
 
-        self.__heading_server = Server_TCP(port=self.__config["heading_port"],
+        self.__heading_server = Server_TCP(port=self.__config["heading_server_port"],
                                            callback=self.__heading_callback,
-                                           buffer_size=self.__config["heading_buffer_size"],
+                                           buffer_size=self.__config["heading_server_buffer_size"],
                                            logger=self,
                                            name=self.__config["heading_name"],
-                                           address=self.__config["heading_IP"],
+                                           address=self.__config["heading_server_IP"],
                                            )
         self.__heading_server.start()
 
@@ -93,12 +93,15 @@ class Transmitter(Node, Logger):
         self.get_logger().error(msg)
 
     def __heading_callback(self, message:bytes) -> bytes:
-        data = json.loads(message.decode())[self.__config["heading_key"]]
-        msg = Float32()
-        msg.data = float(data)
-        self.__float_publisher.publish(msg)
-        return b"OK"
-
+        try:
+            data = json.loads(message.decode())[self.__config["heading_key"]]
+            msg = Float32()
+            msg.data = float(data)
+            self.__float_publisher.publish(msg)
+            return b"OK"
+        except BaseException as e:
+            self.error(str(e))
+            return b"FAILURE"
 
 def main():
     try:

@@ -26,7 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'transmitter_server = topics_broadcaster.transmitter:main',
-            'reciever_client = topics_broadcaster.reciever:main'
+            'receiver_client = topics_broadcaster.receiver:main'
         ],
     },
 )

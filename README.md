@@ -8,7 +8,13 @@ Contact details: Foteinos Konstantinos (kfoteinos@hua.gr) (HUA Computer Vision G
 
 ### Running instructions
 
-Adjust the configuration on the `___init__.py`:
+Change the ROS distribution on all `.bash` scripts (on both machines):
+```bash
+ROS_DISTRO=<your distro>
+source /opt/ros/$ROS_DISTRO/setup.bash
+```
+
+Adjust the configuration on the `__init__.py` (on both machines):
 ```python
 CONFIGURATION = {
 
@@ -25,22 +31,22 @@ CONFIGURATION = {
 }
 ```
 
-Run the following on both machines:
+Run the following (on both machines):
 ```bash
-chmod +x ./build.bash ./run_reciever.bash ./run_transmitter.bash
+chmod +x ./build.bash ./run_receiver.bash ./run_transmitter.bash
 ```
 
-Build the ROS package on both machines using:
+Build the ROS package (on both machines):
 ```bash
 ./build.bash
 ```
 
-Run the reciever client (Jetson):
+Run the receiver client (only on the UGV's Jetson):
 ```bash
-./run_reciever.bash
+./run_receiver.bash
 ```
 
-Run the transmitter server (Ground Station):
+Run the transmitter server (only on Ground Station):
 ```bash
 ./run_transmitter.bash
 ```

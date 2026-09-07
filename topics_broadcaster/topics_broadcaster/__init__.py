@@ -24,10 +24,11 @@ CONFIGURATION = {
 
     "heading_topic_ugv": "/b2/nicla/magnetometer/heading",
     "heading_topic_gs": "/b2/nicla/magnetometer/heading_broadcasted",
-    "heading_IP": "127.0.0.1",
-    "heading_port": 49152,
+    "heading_server_IP": "127.0.0.1",
+    "heading_server_port": 49152,
     "heading_name": "Heading",
-    "heading_buffer_size": 1024,
+    "heading_server_buffer_size": 1024,
+    "heading_client_buffer_size": 1024,
     "heading_key": "heading",
 
 }
