@@ -29,6 +29,22 @@ CONFIGURATION = {
     "heading_name": "Heading",
     "heading_server_buffer_size": 1024,
     "heading_client_buffer_size": 1024,
-    "heading_key": "heading",
+
+    "fix_topic_ugv": "/fix",
+    "fix_topic_gs": "/fix_broadcasted",
+    "fix_server_IP": "127.0.0.1",
+    "fix_server_port": 49153,
+    "fix_name": "Fix",
+    "fix_server_buffer_size": 1024,
+    "fix_client_buffer_size": 1024,
+
+    "rgb_topic_ugv": "/b2/camera_front_435i/realsense_front_435i/color/image_raw",
+    "rgb_topic_gs": "/b2/camera_front_435i/realsense_front_435i/color/image_raw_broadcasted",
+    "rgb_server_IP": "127.0.0.1",
+    "rgb_server_port": 49154,
+    "rgb_name": "RGB",
+    "rgb_server_buffer_size": 1_000_000, # 640 x 480, < 65482
+    "rgb_client_buffer_size": 1024,
+    "rgb_fps": 0.5,
 
 }

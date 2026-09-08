@@ -1,29 +1,32 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32
+from sensor_msgs.msg import NavSatFix, Image
 from rclpy.executors import ExternalShutdownException
 import socket
 from . import Logger, CONFIGURATION, green_back, green_fore, red_back, red_fore, blue_back, blue_fore
-import json
+import pickle
 from typing import Callable
-# TODO: import multithreading
+import threading
 
 
 class Server_TCP:
 
     def __init__(self,
-                 port:int,                          # Port number
-                 callback:Callable[[bytes], bytes], # Function to apply to the message(s)
-                 buffer_size:int=1024,              # Maximum message size
-                 logger:Logger|None=None,           # Optional
-                 max_connections:int=1,             # Maxinum waiting connections
-                 address:str="",                    # Server address (localhost)
-                 name:str=""                        # Server name (useful if many servers are running)
-                 ):
+                port:int,                          # Port number
+                callback:Callable[[bytes], bytes], # Function to apply to the message(s)
+                send_buffer_size:int=1024,         # Maximum message size (send)
+                rcv_buffer_size:int=1024,          # Maximum message size (receive)
+                logger:Logger|None=None,           # Optional
+                max_connections:int=1,             # Maxinum waiting connections
+                address:str="",                    # Server address (localhost)
+                name:str=""                        # Server name (useful if many servers are running)
+                ):
 
         self.__port = port
         self.__address = address
-        self.__buffer_size = buffer_size
+        self.__send_buffer_size = send_buffer_size
+        self.__rcv_buffer_size = rcv_buffer_size
         self.__callback = callback
         self.__logger = logger
         self.__max_connections = max_connections
@@ -35,6 +38,9 @@ class Server_TCP:
         prefix = f"\033[0;0m[TCP SERVER {blue_fore(self.__name)}]"
 
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # https://pubs.opengroup.org/onlinepubs/009695399/functions/setsockopt.html
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, self.__send_buffer_size) # Send buffer
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.__rcv_buffer_size)  # Receive buffer
         server.bind((self.__address, self.__port))
         server.listen(self.__max_connections)
         if self.__logger is not None:
@@ -71,16 +77,53 @@ class Transmitter(Node, Logger):
             qos_profile = 10,
         )
 
+        self.__fix_publisher=self.create_publisher(
+            msg_type = NavSatFix,
+            topic = self.__config["fix_topic_gs"],
+            qos_profile = 10,
+        )
+
+        self.__rgb_publisher=self.create_publisher(
+            msg_type = Image,
+            topic = self.__config["rgb_topic_gs"],
+            qos_profile = 10,
+        )
+
         self.info(blue_back("RUNNING TRANSMITTER (SERVER) ON GROUND STATION"))
 
-        self.__heading_server = Server_TCP(port=self.__config["heading_server_port"],
-                                           callback=self.__heading_callback,
-                                           buffer_size=self.__config["heading_server_buffer_size"],
-                                           logger=self,
-                                           name=self.__config["heading_name"],
-                                           address=self.__config["heading_server_IP"],
-                                           )
-        self.__heading_server.start()
+        self.__servers = {
+            "heading_server": Server_TCP(port=self.__config["heading_server_port"],
+                                        callback=self.__heading_callback,
+                                        buffer_size=self.__config["heading_server_buffer_size"],
+                                        logger=self,
+                                        name=self.__config["heading_name"],
+                                        address=self.__config["heading_server_IP"],
+                                        ),
+            "fix_server": Server_TCP(port=self.__config["fix_server_port"],
+                                        callback=self.__fix_callback,
+                                        buffer_size=self.__config["fix_server_buffer_size"],
+                                        logger=self,
+                                        name=self.__config["fix_name"],
+                                        address=self.__config["fix_server_IP"],
+                                        ),
+            "rgb_server": Server_TCP(port=self.__config["rgb_server_port"],
+                                        callback=self.__rgb_callback,
+                                        buffer_size=self.__config["rgb_server_buffer_size"],
+                                        logger=self,
+                                        name=self.__config["rgb_name"],
+                                        address=self.__config["rgb_server_IP"],
+                                        ),
+        }
+
+        self.__threads = []
+
+        for server in self.__servers.keys():
+            self.info(f"Starting {blue_fore(server)} server ...")
+            self.__threads.append(threading.Thread(target=self.__servers[server].start))
+            self.__threads[-1].start()
+
+        for thread in self.__threads:
+            thread.join()
 
     
     def info(self, msg):
@@ -94,14 +137,32 @@ class Transmitter(Node, Logger):
 
     def __heading_callback(self, message:bytes) -> bytes:
         try:
-            data = json.loads(message.decode())[self.__config["heading_key"]]
-            msg = Float32()
-            msg.data = float(data)
+            msg = pickle.loads(message)
             self.__float_publisher.publish(msg)
             return b"OK"
         except BaseException as e:
             self.error(str(e))
             return b"FAILURE"
+
+    def __fix_callback(self, message:bytes) -> bytes:
+        try:
+            msg = pickle.loads(message)
+            self.__fix_publisher.publish(msg)
+            return b"OK"
+        except BaseException as e:
+            self.error(str(e))
+            return b"FAILURE"
+
+    def __rgb_callback(self, message:bytes) -> bytes:
+        try:
+            print(len(message))
+            msg = pickle.loads(message)
+            self.__rgb_publisher.publish(msg)
+            return b"OK"
+        except BaseException as e:
+            self.error(str(e))
+            return b"FAILURE"
+    
 
 def main():
     try:
